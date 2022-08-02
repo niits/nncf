@@ -10,9 +10,11 @@ class TinyImageNetDataModule(LightningDataModule):
         self,
         train_transform,
         val_transform,
-        dataset_name: str = "Maysee/tiny-imagenet",
+        dataset_name: str = "frgfm/imagenette'",
         stratify_column: str = "label",
         batch_size: int = 32,
+        num_classes: int = 10,
+        image_size: str = "320px",
     ):
         super().__init__()
         self.batch_size = batch_size
@@ -20,22 +22,15 @@ class TinyImageNetDataModule(LightningDataModule):
         self.stratify_column = stratify_column
         self.train_transform = CollateFn(train_transform)
         self.val_transform = CollateFn(val_transform)
-
-        self.tiny_imagenet = load_dataset(self.dataset_name, split="train+valid")
-        self.num_classes = max(self.tiny_imagenet["label"]) + 1
+        self.num_classes = num_classes
+        self.image_size = image_size
 
     def prepare_data(
         self,
     ):
-
-        ds = self.tiny_imagenet.train_test_split(
-            test_size=0.2, stratify_by_column=self.stratify_column
-        )
-        tmp, self.test_dataset = ds["train"], ds["test"]
-        ds = tmp.train_test_split(
-            test_size=0.2, stratify_by_column=self.stratify_column
-        )
-        self.train_dataset, self.val_dataset = ds["train"], ds["test"]
+        dataset = load_dataset(self.dataset_name, self.image_size)
+        self.train_dataset = dataset["train"]
+        self.val_dataset = dataset["valid"]
 
     def train_dataloader(self):
         return DataLoader(

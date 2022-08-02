@@ -47,9 +47,12 @@ class ResNetClassifier(pl.LightningModule):
     def training_step(self, batch, batch_idx):
 
         imgs, labels = batch["image"], batch["label"]
-        predictions = self.resnet_model(imgs).softmax(dim=1)
+        predictions = self.resnet_model(imgs)
+
         loss = self.criterion(predictions, labels)
-        acc = (labels == torch.argmax(predictions, 1)).type(torch.FloatTensor).mean()
+        _, preds = torch.max(predictions, 1)
+
+        acc = (preds == labels.data).type(torch.FloatTensor).mean()
 
         self.log(
             "train_acc", acc, on_step=True, on_epoch=True, prog_bar=True, logger=True
@@ -61,12 +64,20 @@ class ResNetClassifier(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         imgs, labels = batch["image"], batch["label"]
-        predictions = self.resnet_model(imgs).softmax(dim=1)
+        predictions = self.resnet_model(imgs)
         loss = self.criterion(predictions, labels)
-        acc = (labels == torch.argmax(predictions, 1)).type(torch.FloatTensor).mean()
 
-        self.log("test_loss", loss, on_step=True, prog_bar=True, logger=True)
-        self.log("test_acc", acc, on_step=True, prog_bar=True, logger=True)
+        _, preds = torch.max(predictions, 1)
+
+        acc = (preds == labels.data).type(torch.FloatTensor).mean()
+
+        self.log("val_loss", loss, on_step=True, prog_bar=True, logger=True)
+        return acc
+        
+
+    def validation_epoch_end(self, validation_step_outputs):
+        all_preds = torch.stack(validation_step_outputs)
+        self.log("val_acc", all_preds.mean(), logger=True)
 
     def test_step(self, batch, batch_idx):
         imgs, labels = batch
